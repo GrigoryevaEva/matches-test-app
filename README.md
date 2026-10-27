@@ -8,7 +8,7 @@
 
 ## Запуск
 
-Нужен Node.js 20+.
+Нужен Node.js 20.19+ или 22.12+ (требование инструментов Vite / Storybook).
 
 ```bash
 npm install
@@ -16,6 +16,18 @@ npm run web      # откроется в браузере — телефон н�
 # или
 npm start        # QR-код для Expo Go на телефоне
 ```
+
+### Проверки и Storybook
+
+```bash
+npm test                  # поведенческие проверки настоящего экрана с контролируемым HTTP-ответом
+npm run typecheck         # проверка TypeScript
+npm run storybook         # каталог компонентов: http://localhost:6006
+npm run build-storybook   # статическая сборка каталога в storybook-static
+```
+
+Storybook показывает те же React Native Web компоненты, что используются в приложении.
+При изменении компонента обновляйте соответствующие истории; истории сами по себе не заменяют тесты.
 
 Проект — Expo + React Native + TypeScript. Если раньше вы писали только на React для веба, это не страшно: вместо `div` здесь `View`, вместо `span` — `Text`, вместо `button` — `Pressable`, списки — `FlatList`.
 

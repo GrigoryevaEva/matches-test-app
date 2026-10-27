@@ -39,3 +39,20 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Storybook build output
+storybook-static/
+
+# Local agent planning and working materials
+/.scratch/
+/.spec-drafts/
+/.implementation-notes/
+/.implementation-worktrees/
+/.agents/
+/.codex/
+/AGENTS.md
+/CLAUDE.md
+/GLOSSARY.md
+/GLOSSARY-MAP.md
+/docs/agents/
+/docs/adr/
