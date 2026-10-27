@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
+import { colors } from '../theme';
 
 type Props = {
   // Момент последней успешной загрузки данных.
@@ -22,6 +23,6 @@ export function UpdatedAgo({ since }: Props) {
 const styles = StyleSheet.create({
   text: {
     fontSize: 13,
-    color: '#6b7280',
+    color: colors.muted,
   },
 });

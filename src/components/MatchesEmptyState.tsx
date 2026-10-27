@@ -3,7 +3,7 @@ import type { MatchFilter } from '../domain/matches';
 import { colors, spacing } from '../theme';
 
 type Props = {
-  filter: MatchFilter;
+  filter?: MatchFilter;
 };
 
 const titles: Record<MatchFilter, string> = {
@@ -15,8 +15,12 @@ const titles: Record<MatchFilter, string> = {
 export function MatchesEmptyState({ filter }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{titles[filter]}</Text>
-      <Text style={styles.description}>Попробуйте изменить фильтр или настройки отображения.</Text>
+      <Text style={styles.title}>{filter ? titles[filter] : 'Матчей пока нет'}</Text>
+      <Text style={styles.description}>
+        {filter
+          ? 'Попробуйте изменить фильтр или настройки отображения.'
+          : 'Загляните позже или обновите список.'}
+      </Text>
     </View>
   );
 }

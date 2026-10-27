@@ -1,9 +1,147 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import fixtures from '../../data/matches.json';
 import { MatchesScreen } from './MatchesScreen';
 
 describe('MatchesScreen', () => {
+  it.each(['network failure', 'invalid JSON'])('offers retry after %s', async (failure) => {
+    vi.stubGlobal('fetch', failure === 'network failure'
+      ? vi.fn(async () => { throw new Error('offline'); })
+      : vi.fn(async () => new Response('not JSON')));
+
+    render(<MatchesScreen />);
+
+    expect(await screen.findByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByText(/Обновлено/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a disposed request when a new screen is opened in StrictMode', async () => {
+    let finishOldRequest: (response: Response) => void = () => {};
+    const pendingResponse = new Promise<Response>((resolve) => {
+      finishOldRequest = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockReturnValueOnce(pendingResponse)
+      .mockResolvedValue(new Response(JSON.stringify(fixtures))));
+
+    render(<StrictMode><MatchesScreen /></StrictMode>);
+
+    expect(await screen.findByText('Зенит')).toBeInTheDocument();
+    await act(async () => {
+      finishOldRequest(new Response(JSON.stringify({ round: 99, matches: [] })));
+    });
+
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(8);
+    expect(screen.queryByText('Матчей пока нет')).not.toBeInTheDocument();
+    expect(screen.queryByText('99 ТУР')).not.toBeInTheDocument();
+  });
+
+  it('retains loaded matches on refresh failure and recovers with retry', async () => {
+    const replacement = { ...fixtures, matches: [fixtures.matches[4]] };
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures)))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(new Response(JSON.stringify(replacement))));
+
+    render(<MatchesScreen />);
+    await screen.findByText('Зенит');
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить' }));
+
+    const retry = await screen.findByRole('button', { name: 'Повторить' });
+    expect(screen.getByRole('alert')).toHaveTextContent('Не удалось загрузить матчи');
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(8);
+    expect(screen.getByText(/Обновлено \d+ сек назад/)).toBeInTheDocument();
+
+    fireEvent.click(retry);
+    expect(await screen.findByText('Пари Нижний Новгород')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Зенит')).not.toBeInTheDocument();
+  });
+
+  it('keeps cards and selected conditions during refresh and prevents overlapping updates', async () => {
+    let finishRefresh: (response: Response) => void = () => {};
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      finishRefresh = resolve;
+    });
+    const changedData = { ...fixtures, matches: [fixtures.matches[0], fixtures.matches[7]] };
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures)))
+      .mockReturnValueOnce(pendingRefresh)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ round: 12, matches: [] }))));
+
+    render(<MatchesScreen />);
+    await screen.findByText('Зенит');
+    fireEvent.click(screen.getByRole('button', { name: 'Предстоящие' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Показывать неизвестные статусы' }));
+
+    const refresh = screen.getByRole('button', { name: 'Обновить' });
+    act(() => {
+      fireEvent.click(refresh);
+      fireEvent.click(refresh);
+    });
+
+    expect(screen.getByRole('button', { name: 'Обновляем…' })).toBeDisabled();
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(4);
+    expect(screen.getByRole('button', { name: 'Предстоящие', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('switch')).not.toBeChecked();
+
+    await act(async () => {
+      finishRefresh(new Response(JSON.stringify(changedData)));
+    });
+
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(1);
+    expect(screen.getByText('Динамо Махачкала')).toBeInTheDocument();
+    expect(screen.queryByText('Зенит')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Предстоящие', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('switch')).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Обновить' })).toBeEnabled();
+  });
+
+  it.each([
+    ['missing matches', { round: 12 }],
+    ['invalid start date', { ...fixtures, matches: [{ ...fixtures.matches[0], startsAt: 'not-a-date' }] }],
+    ['invalid score', { ...fixtures, matches: [{ ...fixtures.matches[0], score: { home: 'two', away: 1 } }] }],
+    ['invalid team', { ...fixtures, matches: [{ ...fixtures.matches[0], home: null }] }],
+    ['invalid minute', { ...fixtures, matches: [{ ...fixtures.matches[3], minute: 'sixty' }] }],
+  ])('offers recovery for %s instead of rendering unusable data', async (_name, data) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data))));
+
+    render(<MatchesScreen />);
+
+    expect(await screen.findByRole('button', { name: 'Повторить' })).toBeInTheDocument();
+    expect(screen.queryByText(/Обновлено/)).not.toBeInTheDocument();
+    expect(screen.queryAllByTestId(/^match-/)).toHaveLength(0);
+  });
+
+  it('distinguishes an empty successful response from an empty filter', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ round: 12, matches: [] }))));
+
+    render(<MatchesScreen />);
+
+    expect(await screen.findByText('Матчей пока нет')).toBeInTheDocument();
+    expect(screen.queryByText('Нет матчей по выбранным условиям')).not.toBeInTheDocument();
+    expect(screen.getByText(/Обновлено \d+ сек назад/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Обновить' })).toBeInTheDocument();
+  });
+
+  it('recovers from a failed first request using the visible retry action', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(fixtures))));
+
+    render(<MatchesScreen />);
+
+    expect(screen.queryByText(/Обновлено/)).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Повторить' }));
+
+    expect(await screen.findByText('Зенит')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(8);
+    expect(screen.getByText(/Обновлено \d+ сек назад/)).toBeInTheDocument();
+  });
+
   it('hides only unknown statuses and retains the switch across filter changes', async () => {
     const data = {
       ...fixtures,
