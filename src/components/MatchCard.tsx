@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '../theme';
+import { getMatchStatus } from '../domain/matches';
 import type { Match, Team } from '../types/matches';
 
 type Props = {
@@ -92,8 +93,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     gap: spacing.lg,
   },
-  liveCard: { borderColor: '#687f43' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  liveCard: {
+    borderColor: '#687f43',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   status: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -104,14 +112,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
     flexShrink: 1,
   },
-  liveStatus: { backgroundColor: colors.accentSubtle },
-  statusText: { color: colors.muted, fontSize: 12, fontWeight: '600', flexShrink: 1 },
-  liveText: { color: colors.accent },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent },
-  sport: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 },
-  matchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  team: { flex: 1, alignItems: 'flex-start', gap: 5 },
-  awayTeam: { alignItems: 'flex-end' },
+  liveStatus: {
+    backgroundColor: colors.accentSubtle,
+  },
+  statusText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  liveText: {
+    color: colors.accent,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  sport: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  team: {
+    flex: 1,
+    alignItems: 'flex-start',
+    gap: 5,
+  },
+  awayTeam: {
+    alignItems: 'flex-end',
+  },
   teamBadge: {
     width: 38,
     height: 42,
@@ -123,21 +160,64 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSubtle,
     marginBottom: spacing.sm,
   },
-  awayBadge: { backgroundColor: colors.surfaceRaised },
-  teamInitial: { fontSize: 20, fontWeight: '800', color: colors.text },
-  teamName: { fontSize: 17, lineHeight: 23, fontWeight: '700', color: colors.text },
-  teamCity: { fontSize: 12, lineHeight: 18, color: colors.muted },
-  teamRole: { fontSize: 9, letterSpacing: 1, color: colors.muted, marginTop: spacing.xs },
-  awayText: { textAlign: 'right' },
-  scoreBlock: { width: 92, alignItems: 'center', gap: 5 },
-  score: { color: colors.text, fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  scoreCaption: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 },
+  awayBadge: {
+    backgroundColor: colors.surfaceRaised,
+  },
+  teamInitial: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  teamName: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  teamCity: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.muted,
+  },
+  teamRole: {
+    fontSize: 9,
+    letterSpacing: 1,
+    color: colors.muted,
+    marginTop: spacing.xs,
+  },
+  awayText: {
+    textAlign: 'right',
+  },
+  scoreBlock: {
+    width: 92,
+    alignItems: 'center',
+    gap: 5,
+  },
+  score: {
+    color: colors.text,
+    fontSize: 30,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  scoreCaption: {
+    color: colors.muted,
+    fontSize: 9,
+    letterSpacing: 1.5,
+  },
   footer: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.md,
     gap: spacing.xs,
   },
-  startLabel: { color: colors.muted, fontSize: 9, letterSpacing: 1.2 },
-  startTime: { color: colors.text, fontSize: 12, lineHeight: 18 },
+  startLabel: {
+    color: colors.muted,
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  startTime: {
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });

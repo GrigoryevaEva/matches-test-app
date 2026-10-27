@@ -1,5 +1,5 @@
 import type { Preview } from '@storybook/react-native-web-vite';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { colors, spacing } from '../src/theme';
 import './preview.css';
 
@@ -10,13 +10,26 @@ const preview: Preview = {
   },
   decorators: [
     (Story) => (
-      <View style={{ padding: spacing.md, backgroundColor: colors.background, minHeight: '100%' }}>
-        <View style={{ width: '100%', maxWidth: 800, alignSelf: 'center' }}>
+      <View style={styles.container}>
+        <View style={styles.content}>
           <Story />
         </View>
       </View>
     ),
   ],
 };
+
+const styles = StyleSheet.create({
+  container: {
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    minHeight: '100%',
+  },
+  content: {
+    width: '100%',
+    maxWidth: 800,
+    alignSelf: 'center',
+  },
+});
 
 export default preview;

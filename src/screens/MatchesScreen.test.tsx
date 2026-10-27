@@ -1,9 +1,94 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import fixtures from '../../data/matches.json';
 import { MatchesScreen } from './MatchesScreen';
 
 describe('MatchesScreen', () => {
+  it('hides only unknown statuses and retains the switch across filter changes', async () => {
+    const data = {
+      ...fixtures,
+      matches: [...fixtures.matches, { ...fixtures.matches[0], id: 'unknown', status: 'toString' }],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data))));
+
+    render(<MatchesScreen />);
+    await screen.findByText('Статус неизвестен');
+
+    const unknownSwitch = screen.getByRole('switch', { name: 'Показывать неизвестные статусы' });
+
+    expect(unknownSwitch).toBeChecked();
+    fireEvent.click(unknownSwitch);
+
+    expect(unknownSwitch).not.toBeChecked();
+    expect(screen.queryByText('Статус неизвестен')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(8);
+    expect(screen.getByText('Идёт · 67′')).toBeInTheDocument();
+    expect(screen.getByText('Перенесён')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Предстоящие' }));
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(4);
+    fireEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    expect(unknownSwitch).not.toBeChecked();
+    expect(screen.queryByText('Статус неизвестен')).not.toBeInTheDocument();
+    fireEvent.click(unknownSwitch);
+
+    expect(screen.getByText('Статус неизвестен')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^match-/)).toHaveLength(9);
+  });
+
+  it('explains empty filtered results and restores initial controls after a new session', async () => {
+    const data = {
+      round: 12,
+      matches: [{ ...fixtures.matches[0], status: 'suspended' }],
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(data))));
+
+    const firstSession = render(<MatchesScreen />);
+    await screen.findByText('Статус неизвестен');
+    fireEvent.click(screen.getByRole('switch', { name: 'Показывать неизвестные статусы' }));
+
+    expect(screen.getByText('Нет матчей по выбранным условиям')).toBeInTheDocument();
+    expect(screen.queryByTestId('match-m1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Предстоящие' }));
+    expect(screen.getByText('Нет предстоящих матчей')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Завершённые' }));
+    expect(screen.getByText('Нет завершённых матчей')).toBeInTheDocument();
+
+    firstSession.unmount();
+    render(<MatchesScreen />);
+
+    expect(await screen.findByText('Статус неизвестен')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Все', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Показывать неизвестные статусы' })).toBeChecked();
+  });
+
+  it('filters upcoming and finished matches without changing server order', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(fixtures))));
+
+    render(<MatchesScreen />);
+    await screen.findByText('Зенит');
+
+    expect(screen.getByRole('button', { name: 'Все', pressed: true })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Предстоящие' }));
+
+    expect(screen.getAllByTestId(/^match-m\d+$/).map((card) => card.getAttribute('data-testid'))).toEqual([
+      'match-m5', 'match-m6', 'match-m7', 'match-m8',
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Завершённые' }));
+
+    expect(screen.getAllByTestId(/^match-m\d+$/).map((card) => card.getAttribute('data-testid'))).toEqual([
+      'match-m1', 'match-m2', 'match-m3',
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Все' }));
+
+    expect(screen.getAllByTestId(/^match-m\d+$/)).toHaveLength(8);
+  });
+
   it('shows loading, then the supplied matches in server order with their scores and statuses', async () => {
     let finishRequest: (response: Response) => void = () => {};
     const pendingResponse = new Promise<Response>((resolve) => {
